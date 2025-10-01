@@ -14,7 +14,7 @@ async function processPdfWithGemini(pdfFile: File) {
     const genAI = new GoogleGenerativeAI(apiKey)
 
     const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         generationConfig: {
             responseMimeType: "application/json"
         }
@@ -124,6 +124,12 @@ export async function POST(request: NextRequest) {
         const xlsxFile = data.get('file_xlsx') as File
         const pdfFile = data.get('file_pdf') as File | null
 
+        // Log all formData keys to debug
+        console.log('\n=== FormData Keys ===');
+        for (const key of data.keys()) {
+            console.log(`Key: ${key}, Type: ${typeof data.get(key)}, Value:`, data.get(key));
+        }
+
         // Validate required fields
         if (!academicYear || !semester || !xlsxFile) {
             return NextResponse.json(
@@ -132,7 +138,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        console.log('=== ข้อมูลที่ได้รับ ===')
+        console.log('\n=== ข้อมูลที่ได้รับ ===')
         console.log('ปีการศึกษา:', academicYear)
         console.log('ภาคเรียน:', semester)
 
@@ -146,17 +152,28 @@ export async function POST(request: NextRequest) {
         let pdfOcrResult = null
         if (pdfFile) {
             console.log('✅ มีการส่งไฟล์ PDF มา:', pdfFile.name, `(${(pdfFile.size / 1024 / 1024).toFixed(2)} MB)`)
+            console.log('PDF File Type:', pdfFile.type)
+            console.log('PDF File Size:', pdfFile.size, 'bytes')
 
-            // ส่ง PDF ไปยัง Gemini สำหรับ OCR
-            try {
-                console.log('\n=== กำลังประมวลผล PDF ด้วย Gemini ===')
-                pdfOcrResult = await processPdfWithGemini(pdfFile)
-                console.log('ผลการ OCR จาก PDF:', pdfOcrResult)
-            } catch (ocrError) {
-                console.error('❌ เกิดข้อผิดพลาดในการประมวลผล PDF:', ocrError)
+            // ตรวจสอบว่าเป็นไฟล์ PDF จริง
+            if (!pdfFile.type.includes('pdf') && !pdfFile.name.toLowerCase().endsWith('.pdf')) {
+                console.error('❌ ไฟล์ที่ส่งมาไม่ใช่ไฟล์ PDF')
+                console.log('ℹ️  จะข้ามการประมวลผล PDF')
+            } else {
+                // ส่ง PDF ไปยัง Gemini สำหรับ OCR
+                try {
+                    console.log('\n=== กำลังประมวลผล PDF ด้วย Gemini ===')
+                    pdfOcrResult = await processPdfWithGemini(pdfFile)
+                    console.log('✅ ผลการ OCR จาก PDF สำเร็จ:', pdfOcrResult)
+                } catch (ocrError: any) {
+                    console.error('❌ เกิดข้อผิดพลาดในการประมวลผล PDF:')
+                    console.error('Error Message:', ocrError?.message || ocrError)
+                    console.error('Error Stack:', ocrError?.stack)
+                }
             }
         } else {
             console.log('ℹ️  ไม่มีการส่งไฟล์ PDF มา (ไม่บังคับ)')
+            console.log('file_pdf value from FormData:', data.get('file_pdf'))
         }
 
         // อ่านไฟล์ Excel

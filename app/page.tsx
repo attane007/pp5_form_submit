@@ -239,7 +239,10 @@ export default function Home() {
       formData.append('file_xlsx', file)
 
       if (pdfFile) {
+        console.log('📄 เพิ่ม PDF file เข้า FormData:', pdfFile.name, `(${(pdfFile.size / 1024 / 1024).toFixed(2)} MB)`)
         formData.append('file_pdf', pdfFile)
+      } else {
+        console.log('ℹ️  ไม่มี PDF file ที่จะส่ง')
       }
 
       const backendUrl = '/api/upload'
