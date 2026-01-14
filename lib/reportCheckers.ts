@@ -302,6 +302,41 @@ function checkSgsTeacher(data: ReportData): CheckResult {
     return { value: '0', message: `ครูผู้สอนไม่ตรงกัน (Excel: ${excelTeacher}, SGS: ${sgsTeacher})` };
 }
 
+// ตรวจสอบปีการศึกษาจาก SGS เทียบกับ Form/Excel
+function checkSgsAcademicYear(data: ReportData): CheckResult {
+    if (!data.geminiOcrResult.hasData) return { value: '', message: 'ไม่มีข้อมูล SGS' }
+    const sgsYear = data.geminiOcrResult.data?.academic_year
+    const formYear = data.formData.academicYear
+    const excelYear = data.excelData.data?.home_academic_year
+    if (!sgsYear) return { value: '0', message: 'ไม่มีข้อมูลปีการศึกษาใน SGS' }
+    const s = String(sgsYear).trim()
+    if (String(formYear).trim() === s || (excelYear && String(excelYear).trim() === s)) return { value: '1' }
+    return { value: '0', message: `ปีการศึกษาใน SGS (${s}) ไม่ตรงกับ Form (${formYear})${excelYear ? `, Excel (${excelYear})` : ''}` }
+}
+
+// ตรวจสอบภาคเรียนจาก SGS เทียบกับ Form/Excel
+function checkSgsSemester(data: ReportData): CheckResult {
+    if (!data.geminiOcrResult.hasData) return { value: '', message: 'ไม่มีข้อมูล SGS' }
+    const sgsSem = data.geminiOcrResult.data?.semester
+    const formSem = data.formData.semester
+    const excelSem = data.excelData.data?.home_semester
+    if (!sgsSem) return { value: '0', message: 'ไม่มีข้อมูลภาคเรียนใน SGS' }
+    const s = String(sgsSem).trim()
+    if (String(formSem).trim() === s || (excelSem && String(excelSem).trim() === s)) return { value: '1' }
+    return { value: '0', message: `ภาคเรียนใน SGS (${s}) ไม่ตรงกับ Form (${formSem})${excelSem ? `, Excel (${excelSem})` : ''}` }
+}
+
+// ตรวจสอบระดับชั้นจาก SGS เทียบกับ Excel
+function checkSgsGradeLevel(data: ReportData): CheckResult {
+    if (!data.geminiOcrResult.hasData) return { value: '', message: 'ไม่มีข้อมูล SGS' }
+    const sgsGrade = data.geminiOcrResult.data?.grade_level
+    const excelGrade = data.excelData.data?.home_grade_level
+    if (!sgsGrade) return { value: '0', message: 'ไม่มีข้อมูลระดับชั้นใน SGS' }
+    const s = String(sgsGrade).trim()
+    if (excelGrade && String(excelGrade).trim() === s) return { value: '1' }
+    return { value: '0', message: `ระดับชั้นใน SGS (${s}) ไม่ตรงกับ Excel (${excelGrade || 'ไม่มีข้อมูล'})` }
+}
+
 // Helper function for creating SGS check results
 function createSgsCheckResult(
     geminiOcrResult: ReportData['geminiOcrResult'],
@@ -375,6 +410,10 @@ export function checkFinalItems(data: ReportData): CheckResult[] {
         competencyResult,
         attitudeResult,
         readAnalyzeWriteResult,
+        // การตรวจสอบจาก SGS: ปีการศึกษา, ภาคเรียน, ระดับชั้น
+        checkSgsAcademicYear(data),
+        checkSgsSemester(data),
+        checkSgsGradeLevel(data),
         checkSgsSubject(data),
         checkSgsTeacher(data),
         createSgsCheckResult(data.geminiOcrResult, 'attitude_valid'),

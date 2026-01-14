@@ -56,5 +56,6 @@ export interface ReportData {
     excelData: ExcelData
     geminiOcrResult: GeminiOcrResult
     summary: Summary
+    remarks?: string
     database?: DatabaseInfo
 }

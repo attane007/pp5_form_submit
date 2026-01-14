@@ -37,8 +37,7 @@ export default function Home() {
   // Auto-calculate academic year and semester when NEXT_PUBLIC_AUTO_ACADEMIC is set in .env
   const autoAcademic = Boolean(process.env.NEXT_PUBLIC_AUTO_ACADEMIC)
 
-  useEffect(() => {
-    if (!autoAcademic) return
+  const computeAutoAcademic = () => {
     const today = new Date()
     const y = today.getFullYear()
     const m = today.getMonth() // 0-based (0=Jan)
@@ -62,6 +61,11 @@ export default function Home() {
 
     setAcademicYear(String(acadYear))
     setSemester(sem)
+  }
+
+  useEffect(() => {
+    if (!autoAcademic) return
+    computeAutoAcademic()
   }, [autoAcademic])
 
   const updatePanelContent = (type: 'info' | 'error' | 'warning' | 'success', title: string, messages: string[]) => {
@@ -305,8 +309,12 @@ export default function Home() {
           await generatePDF(result)
 
           // Reset form on success
-          setAcademicYear('')
-          setSemester('')
+          if (autoAcademic) {
+            computeAutoAcademic()
+          } else {
+            setAcademicYear('')
+            setSemester('')
+          }
           setFile(null)
           setPdfFile(null)
           setSuccess(true)

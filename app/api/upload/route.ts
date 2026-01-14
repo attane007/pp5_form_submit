@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { prisma } from '@/lib/prisma'
+import { ReportData } from '@/lib/pdfTypes'
 
 // ฟังก์ชันสำหรับประมวลผล PDF ด้วย Gemini
 async function processPdfWithGemini(pdfFile: File) {
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
         }
 
         // สร้างข้อมูลสำหรับรายงาน
-        const reportData = {
+        const reportData: ReportData = {
             // ข้อมูลจากฟอร์ม
             formData: {
                 academicYear,
@@ -265,6 +266,55 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // เปรียบเทียบข้อมูลจาก Gemini (PDF) กับข้อมูลจากฟอร์มและ Excel และเขียนหมายเหตุเมื่อไม่ตรง
+        const remarks: string[] = []
+        const gemData = reportData.geminiOcrResult?.data
+        if (reportData.geminiOcrResult && reportData.geminiOcrResult.hasData && gemData) {
+            const g = gemData
+            const formYear = reportData.formData.academicYear
+            const formSem = reportData.formData.semester
+            const excel = reportData.excelData.data || {}
+
+            // ปีการศึกษา
+            if (g.academic_year) {
+                const gemYear = String(g.academic_year).trim()
+                const excelYear = excel.home_academic_year ? String(excel.home_academic_year).trim() : null
+                if (String(formYear).trim() !== gemYear || (excelYear !== null && excelYear !== gemYear)) {
+                    remarks.push(`ปีการศึกษาใน PDF (${gemYear}) ไม่ตรงกับ Form (${formYear})${excelYear ? `, Excel (${excelYear})` : ''}`)
+                }
+            }
+
+            // ภาคเรียน
+            if (g.semester) {
+                const gemSem = String(g.semester).trim()
+                const excelSem = excel.home_semester ? String(excel.home_semester).trim() : null
+                if (String(formSem).trim() !== gemSem || (excelSem !== null && excelSem !== gemSem)) {
+                    remarks.push(`ภาคเรียนใน PDF (${gemSem}) ไม่ตรงกับ Form (${formSem})${excelSem ? `, Excel (${excelSem})` : ''}`)
+                }
+            }
+
+            // ระดับชั้น (เทียบกับ Excel หากมี)
+            if (g.grade_level) {
+                const gemGrade = String(g.grade_level).trim()
+                const excelGrade = excel.home_grade_level ? String(excel.home_grade_level).trim() : null
+                if (excelGrade && gemGrade !== excelGrade) {
+                    remarks.push(`ระดับชั้นใน PDF (${gemGrade}) ไม่ตรงกับ Excel (${excelGrade})`)
+                }
+            }
+
+            // ครูผู้สอน (เทียบกับ Excel หากมี)
+            if (g.teacher) {
+                const normalize = (s: any) => String(s || '').replace(/^(นาย|นาง|นางสาว)\\s*/, '').trim().toLowerCase()
+                const gemTeacher = normalize(g.teacher)
+                const excelTeacher = excel.home_teacher ? normalize(excel.home_teacher) : null
+                if (excelTeacher && gemTeacher !== excelTeacher) {
+                    remarks.push(`ครูผู้สอนใน PDF (${g.teacher}) ไม่ตรงกับ Excel (${excel.home_teacher})`)
+                }
+            }
+        }
+
+        reportData.remarks = remarks.length ? remarks.join('; ') : ''
+
         console.log('\n=== ข้อมูลรายงานที่จะส่งกลับ ===')
         console.log(reportData)
 
@@ -298,7 +348,7 @@ export async function POST(request: NextRequest) {
                     pdfFileName: pdfFile?.name || null,
                     pdfFileSize: pdfFile?.size || null,
                     status: 'PROCESSING', // เปลี่ยนเป็น PROCESSING ก่อน
-                    backendResponse: reportData,
+                    backendResponse: JSON.parse(JSON.stringify(reportData)),
                     submitterIp,
                     userAgent
                 }
