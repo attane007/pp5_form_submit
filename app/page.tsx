@@ -807,7 +807,7 @@ export default function Home() {
                 {/* ตัวอย่างไฟล์ Excel */}
                 <div className="mt-6">
                   <a
-                    href="/ปพ.5_1_2568_ตัวอย่าง.xlsx"
+                    href="/ปพ.5_template_example.xlsx"
                     download
                     className="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition"
                   >
