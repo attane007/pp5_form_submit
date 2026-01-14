@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, DragEvent } from 'react'
+import { useState, useRef, DragEvent, useEffect } from 'react'
 import Image from 'next/image'
 import { generatePDF, validateReportData } from '@/lib/pdfGenerator'
 
@@ -33,6 +33,36 @@ export default function Home() {
   const currentYear = new Date().getFullYear()
   const currentBuddhistYear = currentYear + 543
   const academicYears = Array.from({ length: 10 }, (_, i) => currentBuddhistYear - i)
+
+  // Auto-calculate academic year and semester when NEXT_PUBLIC_AUTO_ACADEMIC is set in .env
+  const autoAcademic = Boolean(process.env.NEXT_PUBLIC_AUTO_ACADEMIC)
+
+  useEffect(() => {
+    if (!autoAcademic) return
+    const today = new Date()
+    const y = today.getFullYear()
+    const m = today.getMonth() // 0-based (0=Jan)
+    const d = today.getDate()
+    let sem = ''
+    let acadYear = y + 543
+
+    // Semester 1: May 15 - Oct 31 (May is month 4)
+    if ((m === 4 && d >= 15) || (m >= 5 && m <= 9)) {
+      sem = '1'
+      acadYear = y + 543
+    } else if (m === 10 || m === 11 || (m >= 0 && m <= 2) || (m === 2 && d <= 30)) {
+      // Semester 2: Nov 1 (10) current year - Mar 30 next year (2)
+      sem = '2'
+      if (m >= 0 && m <= 2) {
+        acadYear = (y - 1) + 543
+      } else {
+        acadYear = y + 543
+      }
+    }
+
+    setAcademicYear(String(acadYear))
+    setSemester(sem)
+  }, [autoAcademic])
 
   const updatePanelContent = (type: 'info' | 'error' | 'warning' | 'success', title: string, messages: string[]) => {
     setPanelContent({ type, title, messages })
@@ -401,8 +431,9 @@ export default function Home() {
                           setError('')
                           setSuccess(false)
                         }}
-                        className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-slate-700 font-medium appearance-none cursor-pointer"
+                        className={`w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-slate-700 font-medium appearance-none ${autoAcademic ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                         required
+                        disabled={autoAcademic}
                       >
                         <option value="">เลือกปีการศึกษา</option>
                         {academicYears.map((year) => (
@@ -433,8 +464,9 @@ export default function Home() {
                           setError('')
                           setSuccess(false)
                         }}
-                        className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-slate-700 font-medium appearance-none cursor-pointer"
+                        className={`w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-slate-700 font-medium appearance-none ${autoAcademic ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                         required
+                        disabled={autoAcademic}
                       >
                         <option value="">เลือกภาคเรียน</option>
                         <option value="1">ภาคเรียนที่ 1</option>

@@ -56,6 +56,14 @@ GEMINI_API_KEY="<your-gemini-api-key>"
 NEXT_PUBLIC_BASE_URL="http://localhost:3000"
 PORT=3000
 
+# Enable automatic academic year & semester calculation when set (any non-empty value).
+# Behavior:
+# - ภาคเรียนที่ 1: 15 พฤษภาคม - 31 ตุลาคม ของปีปัจจุบัน
+# - ภาคเรียนที่ 2: 1 พฤศจิกายน (ปีปัจจุบัน) - 30 มีนาคม (ปีถัดไป)
+# - ภาคเรียนที่ 3: ยังไม่มีกำหนด
+# Set to any non-empty value (e.g. true) to enable automatic selection in the UI.
+NEXT_PUBLIC_AUTO_ACADEMIC=true
+
 # ========================================
 # Optional Configuration
 # ========================================
@@ -74,22 +82,28 @@ NODE_ENV="development"
 
 ### คำแนะนำการตั้งค่า Environment Variables
 
+> อัปเดต: 2026-01-14T22:00:08.882Z
+
 #### 1. **DATABASE_URL**
+
 - สำหรับ MongoDB Atlas: `mongodb+srv://<username>:<password>@<cluster>/<database>?retryWrites=true&w=majority`
 - สำหรับ MongoDB Local: `mongodb://localhost:27017/<database>`
 - ตรวจสอบให้แน่ใจว่า username และ password ถูกต้อง
 
 #### 2. **GEMINI_API_KEY**
+
 - รับ API key จาก [Google AI Studio](https://makersuite.google.com/app/apikey)
 - ตรวจสอบสิทธิ์การใช้งาน Gemini API
 - API key ต้องไม่หมดอายุ
 
 #### 3. **NEXT_PUBLIC_BASE_URL**
+
 - Development: `http://localhost:3000`
 - Production: `https://your-domain.com`
 - ต้องไม่มี trailing slash
 
 #### 4. **Signature Configuration**
+
 - ตั้งค่าชื่อผู้ลงนามใน PDF
 - ใช้สำหรับการสร้างรายงาน PDF
 - สามารถปล่อยเป็นค่า default ได้
@@ -165,17 +179,20 @@ pp5_form_submit/
 ระบบจะตรวจสอบรายงานใน 3 ช่วง:
 
 ### ก่อนกลางภาค
+
 - ข้อมูลระดับชั้น, ห้องเรียน, ภาคเรียน, ปีการศึกษา
 - ข้อมูลรายวิชา, รหัสวิชา, กลุ่มสาระ
 - หน่วยกิต, เวลาเรียน, ครูผู้สอน
 - ความถูกต้องของ KPA, คะแนนเต็ม
 
 ### กลางภาค
+
 - บันทึกเวลาเรียน
 - คะแนนก่อนกลางภาค
 - คะแนนกลางภาค
 
 ### ปลายภาค
+
 - คะแนนหลังกลางภาค, คะแนนสอบปลายภาค
 - การให้ระดับผลการเรียน
 - คะแนนสมรรถนะ, คุณลักษณะอันพึงประสงค์
@@ -187,26 +204,30 @@ pp5_form_submit/
 ### ข้อผิดพลาดทั่วไป
 
 1. **DATABASE_URL ไม่ถูกต้อง**
+
    - ตรวจสอบการเชื่อมต่อ MongoDB
    - ตรวจสอบ username, password, และ database name
    - ตรวจสอบ format ของ connection string
 
 2. **GEMINI_API_KEY ไม่ถูกต้อง**
+
    - ตรวจสอบ API key จาก Google AI Studio
    - ตรวจสอบสิทธิ์การใช้งาน
    - ตรวจสอบว่า API key ยังไม่หมดอายุ
 
 3. **NEXT_PUBLIC_BASE_URL ไม่ถูกต้อง**
+
    - ตรวจสอบ URL ของแอปพลิเคชัน
    - ตรวจสอบ protocol (http/https)
    - ตรวจสอบ port number
 
 4. **ไฟล์มีขนาดใหญ่เกินไป**
+
    - ขนาดไฟล์สูงสุด: 10MB
    - ลดขนาดไฟล์หรือบีบอัด
 
 5. **Signature Configuration ไม่ถูกต้อง**
-   - ตรวจสอบชื่อใน NEXT_PUBLIC_SIGNATURE_* variables
+   - ตรวจสอบชื่อใน NEXT*PUBLIC_SIGNATURE*\* variables
    - ตรวจสอบการตั้งค่าสำหรับ PDF generation
 
 ### การ Debug
