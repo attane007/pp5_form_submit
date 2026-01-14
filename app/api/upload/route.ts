@@ -13,9 +13,9 @@ async function processPdfWithGemini(pdfFile: File) {
 
     const genAI = new GoogleGenerativeAI(apiKey)
 
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite"
     const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash-lite",
-        // model: "gemini-2.5-flash",
+        model: modelName,
         generationConfig: {
             responseMimeType: "application/json"
         }
