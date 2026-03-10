@@ -1,27 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { prisma } from '@/lib/prisma'
 import { ReportData } from '@/lib/pdfTypes'
+import { generateGeminiContentWithRetry, getGeminiKeyPoolSize } from '@/lib/geminiKeyPool'
 
 // ฟังก์ชันสำหรับประมวลผล PDF ด้วย Gemini
 async function processPdfWithGemini(pdfFile: File) {
-    const apiKey = process.env.GEMINI_API_KEY
-
-    if (!apiKey) {
-        throw new Error('GEMINI_API_KEY not configured')
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey)
-
-    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite"
-    const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: {
-            responseMimeType: "application/json"
-        }
-    })
-
     // แปลง PDF เป็น base64
     const arrayBuffer = await pdfFile.arrayBuffer()
     const base64String = Buffer.from(arrayBuffer).toString('base64')
@@ -48,18 +32,24 @@ async function processPdfWithGemini(pdfFile: File) {
     `
 
     try {
-        const result = await model.generateContent([
-            {
-                inlineData: {
-                    data: base64String,
-                    mimeType: "application/pdf"
-                }
-            },
-            prompt
-        ])
+        const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite'
+        const { text, attempt, totalAttempts, keyIndex } = await generateGeminiContentWithRetry({
+            modelName,
+            responseMimeType: 'application/json',
+            contents: [
+                {
+                    inlineData: {
+                        data: base64String,
+                        mimeType: 'application/pdf'
+                    }
+                },
+                prompt
+            ]
+        })
 
-        const response = await result.response
-        const text = response.text()
+        console.log(
+            `[GeminiKeyPool] Success on attempt ${attempt}/${totalAttempts} using key #${keyIndex} (pool size: ${getGeminiKeyPoolSize()}) and model "${modelName}"`
+        )
 
         console.log('Raw Gemini response:', text)
 

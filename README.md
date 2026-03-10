@@ -52,6 +52,13 @@ DATABASE_URL="mongodb+srv://<username>:<password>@<cluster>/<database>?retryWrit
 # AI Processing Configuration
 GEMINI_API_KEY="<your-gemini-api-key>"
 
+# Recommended: multiple Gemini keys for load balancing (comma-separated)
+# System uses round-robin and retries next key on retryable failures.
+GEMINI_API_KEYS="key1,key2,key3"
+
+# Optional: max retry attempts across key pool (default 3, max 10)
+GEMINI_MAX_ATTEMPTS=3
+
 # Application Configuration
 NEXT_PUBLIC_BASE_URL="http://localhost:3000"
 PORT=3000
@@ -95,6 +102,19 @@ NODE_ENV="development"
 - รับ API key จาก [Google AI Studio](https://makersuite.google.com/app/apikey)
 - ตรวจสอบสิทธิ์การใช้งาน Gemini API
 - API key ต้องไม่หมดอายุ
+
+#### 2.1 **GEMINI_API_KEYS (แนะนำ)**
+
+- รองรับหลาย key ในตัวแปรเดียว โดยคั่นด้วย comma เช่น `key1,key2,key3`
+- ระบบจะกระจายโหลดแบบ round-robin ข้าม key ในแต่ละ request
+- เมื่อเจอ error ที่ retry ได้ (เช่น 429/5xx/timeout) ระบบจะลอง key ถัดไปอัตโนมัติ
+- หากตั้งทั้ง `GEMINI_API_KEYS` และ `GEMINI_API_KEY` ระบบจะใช้ key จากทั้งสองตัวแปร (ตัดค่าซ้ำให้อัตโนมัติ)
+
+#### 2.2 **GEMINI_MAX_ATTEMPTS**
+
+- กำหนดจำนวนครั้งสูงสุดที่ระบบจะ retry ข้าม key pool
+- ค่าเริ่มต้นคือ `3` และจำกัดสูงสุดที่ `10`
+- หากไม่ตั้งค่า ระบบจะใช้ค่าเริ่มต้นอัตโนมัติ
 
 #### 3. **NEXT_PUBLIC_BASE_URL**
 
@@ -204,29 +224,30 @@ pp5_form_submit/
 ### ข้อผิดพลาดทั่วไป
 
 1. **DATABASE_URL ไม่ถูกต้อง**
-
    - ตรวจสอบการเชื่อมต่อ MongoDB
    - ตรวจสอบ username, password, และ database name
    - ตรวจสอบ format ของ connection string
 
 2. **GEMINI_API_KEY ไม่ถูกต้อง**
-
    - ตรวจสอบ API key จาก Google AI Studio
    - ตรวจสอบสิทธิ์การใช้งาน
    - ตรวจสอบว่า API key ยังไม่หมดอายุ
 
-3. **NEXT_PUBLIC_BASE_URL ไม่ถูกต้อง**
+3. **Gemini quota เต็มหรือเจอ 429/5xx บ่อย**
+   - ตั้งค่า `GEMINI_API_KEYS` ให้มีหลาย key เพื่อกระจายโหลด
+   - ปรับ `GEMINI_MAX_ATTEMPTS` ให้เหมาะกับปริมาณงาน
+   - ตรวจสอบ log ว่าระบบมีการสลับ key และ retry ตามที่คาดหวัง
 
+4. **NEXT_PUBLIC_BASE_URL ไม่ถูกต้อง**
    - ตรวจสอบ URL ของแอปพลิเคชัน
    - ตรวจสอบ protocol (http/https)
    - ตรวจสอบ port number
 
-4. **ไฟล์มีขนาดใหญ่เกินไป**
-
+5. **ไฟล์มีขนาดใหญ่เกินไป**
    - ขนาดไฟล์สูงสุด: 10MB
    - ลดขนาดไฟล์หรือบีบอัด
 
-5. **Signature Configuration ไม่ถูกต้อง**
+6. **Signature Configuration ไม่ถูกต้อง**
    - ตรวจสอบชื่อใน NEXT*PUBLIC_SIGNATURE*\* variables
    - ตรวจสอบการตั้งค่าสำหรับ PDF generation
 
