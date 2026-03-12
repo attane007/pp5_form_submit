@@ -35,6 +35,10 @@ function normalizeAndDedupeKeys(keys: string[]) {
     return Array.from(new Set(keys.map((key) => key.trim()).filter(Boolean)))
 }
 
+function normalizeAndDedupeModels(models: string[]) {
+    return Array.from(new Set(models.map((model) => model.trim()).filter(Boolean)))
+}
+
 function getGeminiApiKeys() {
     const currentSignature = getEnvSignature()
 
@@ -88,6 +92,19 @@ function parseMaxAttempts(rawValue?: string, fallback = DEFAULT_MAX_ATTEMPTS) {
     }
 
     return Math.min(normalized, MAX_ALLOWED_ATTEMPTS)
+}
+
+function getGeminiModelChain(primaryModelName: string) {
+    const fallbackModels = normalizeAndDedupeModels((process.env.GEMINI_FALLBACK_MODELS || '').split(','))
+    const modelChain = normalizeAndDedupeModels([primaryModelName, ...fallbackModels])
+
+    if (modelChain.length < 2) {
+        throw new Error(
+            'Gemini fallback models not configured. Set GEMINI_FALLBACK_MODELS with at least one fallback model different from GEMINI_MODEL'
+        )
+    }
+
+    return modelChain
 }
 
 function extractStatusCode(error: unknown) {
@@ -145,7 +162,7 @@ function isRetryableGeminiError(error: unknown) {
 
     const message = getErrorMessage(error).toLowerCase()
 
-    return /rate limit|quota|timeout|timed out|temporar|network|unavailable|econnreset|eai_again|etimedout/.test(message)
+    return /rate limit|quota|resource_exhausted|timeout|timed out|temporar|network|unavailable|econnreset|eai_again|etimedout/.test(message)
 }
 
 function maskApiKey(apiKey: string) {
@@ -170,14 +187,19 @@ export async function generateGeminiContentWithRetry(
     options: GenerateGeminiContentWithRetryOptions
 ): Promise<GenerateGeminiContentWithRetryResult> {
     const apiKeys = getGeminiApiKeys()
-    const modelName = options.modelName || process.env.GEMINI_MODEL || DEFAULT_MODEL_NAME
+    const primaryModelName = options.modelName || process.env.GEMINI_MODEL || DEFAULT_MODEL_NAME
+    const modelChain = getGeminiModelChain(primaryModelName)
     const responseMimeType = options.responseMimeType || 'application/json'
     const maxAttempts = options.maxAttempts ?? parseMaxAttempts(process.env.GEMINI_MAX_ATTEMPTS)
     const totalAttempts = Math.max(1, maxAttempts)
 
     let lastError: unknown = null
+    let lastModelName = primaryModelName
 
     for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+        const modelIndex = (attempt - 1) % modelChain.length
+        const modelName = modelChain[modelIndex]
+        const isFallbackModel = modelIndex > 0
         const { keyIndex, apiKey } = getNextGeminiApiKey(apiKeys)
 
         try {
@@ -202,18 +224,19 @@ export async function generateGeminiContentWithRetry(
             }
         } catch (error) {
             lastError = error
+            lastModelName = modelName
 
             const shouldRetry = attempt < totalAttempts && isRetryableGeminiError(error)
             const safeKey = maskApiKey(apiKey)
             const errorMessage = getErrorMessage(error)
 
             console.error(
-                `[GeminiKeyPool] Attempt ${attempt}/${totalAttempts} failed on key #${keyIndex} (${safeKey}) with model "${modelName}": ${errorMessage}`
+                `[GeminiKeyPool] Attempt ${attempt}/${totalAttempts} failed on key #${keyIndex} (${safeKey}) with model "${modelName}"${isFallbackModel ? ` (fallback ${modelIndex}/${modelChain.length - 1})` : ' (primary)'}: ${errorMessage}`
             )
 
             if (!shouldRetry) {
                 throw createGeminiPoolError(
-                    `Gemini call failed after ${attempt} attempt(s) using model "${modelName}"`,
+                    `Gemini call failed after ${attempt} attempt(s). Last model "${modelName}". Model chain: ${modelChain.join(' -> ')}`,
                     error
                 )
             }
@@ -221,7 +244,7 @@ export async function generateGeminiContentWithRetry(
     }
 
     throw createGeminiPoolError(
-        `Gemini call failed after ${totalAttempts} attempt(s) using model "${modelName}"`,
+        `Gemini call failed after ${totalAttempts} attempt(s). Last model "${lastModelName}". Model chain: ${modelChain.join(' -> ')}`,
         lastError
     )
 }

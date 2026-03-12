@@ -32,9 +32,9 @@ async function processPdfWithGemini(pdfFile: File) {
     `
 
     try {
-        const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite'
-        const { text, attempt, totalAttempts, keyIndex } = await generateGeminiContentWithRetry({
-            modelName,
+        const primaryModelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite'
+        const { text, attempt, totalAttempts, keyIndex, modelName } = await generateGeminiContentWithRetry({
+            modelName: primaryModelName,
             responseMimeType: 'application/json',
             contents: [
                 {
@@ -47,8 +47,10 @@ async function processPdfWithGemini(pdfFile: File) {
             ]
         })
 
+        const usedFallback = modelName !== primaryModelName
+
         console.log(
-            `[GeminiKeyPool] Success on attempt ${attempt}/${totalAttempts} using key #${keyIndex} (pool size: ${getGeminiKeyPoolSize()}) and model "${modelName}"`
+            `[GeminiKeyPool] Success on attempt ${attempt}/${totalAttempts} using key #${keyIndex} (pool size: ${getGeminiKeyPoolSize()}) and model "${modelName}"${usedFallback ? ' (fallback)' : ' (primary)'}`
         )
 
         console.log('Raw Gemini response:', text)

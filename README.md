@@ -56,7 +56,14 @@ GEMINI_API_KEY="<your-gemini-api-key>"
 # System uses round-robin and retries next key on retryable failures.
 GEMINI_API_KEYS="key1,key2,key3"
 
-# Optional: max retry attempts across key pool (default 3, max 10)
+# Primary Gemini model
+GEMINI_MODEL="gemini-2.5-flash-lite"
+
+# Required fallback model chain (comma-separated)
+# On each retryable failure, system switches to the next model in this list.
+GEMINI_FALLBACK_MODELS="gemini-2.0-flash,gemini-1.5-flash"
+
+# Optional: shared retry budget across key pool + model chain (default 3, max 10)
 GEMINI_MAX_ATTEMPTS=3
 
 # Application Configuration
@@ -110,9 +117,20 @@ NODE_ENV="development"
 - เมื่อเจอ error ที่ retry ได้ (เช่น 429/5xx/timeout) ระบบจะลอง key ถัดไปอัตโนมัติ
 - หากตั้งทั้ง `GEMINI_API_KEYS` และ `GEMINI_API_KEY` ระบบจะใช้ key จากทั้งสองตัวแปร (ตัดค่าซ้ำให้อัตโนมัติ)
 
-#### 2.2 **GEMINI_MAX_ATTEMPTS**
+#### 2.2 **GEMINI_MODEL**
 
-- กำหนดจำนวนครั้งสูงสุดที่ระบบจะ retry ข้าม key pool
+- กำหนดโมเดลหลัก (primary model) ที่จะลองก่อนเสมอ
+- หากไม่ตั้งค่า ระบบจะใช้ค่าเริ่มต้น `gemini-2.5-flash-lite`
+
+#### 2.3 **GEMINI_FALLBACK_MODELS (จำเป็น)**
+
+- กำหนด fallback models แบบคั่นด้วย comma เช่น `gemini-2.0-flash,gemini-1.5-flash`
+- ต้องมีอย่างน้อย 1 โมเดลที่แตกต่างจาก `GEMINI_MODEL`
+- เมื่อเกิด **retryable error** ระบบจะสลับไปโมเดลถัดไปใน chain อัตโนมัติ
+
+#### 2.4 **GEMINI_MAX_ATTEMPTS**
+
+- กำหนดจำนวนครั้งสูงสุดของการลองทั้งหมด (shared budget) ข้ามทั้ง key pool และ model chain
 - ค่าเริ่มต้นคือ `3` และจำกัดสูงสุดที่ `10`
 - หากไม่ตั้งค่า ระบบจะใช้ค่าเริ่มต้นอัตโนมัติ
 
